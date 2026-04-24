@@ -300,7 +300,8 @@ export class TabbyApiClient extends EventEmitter {
   }
 
   async fetchCompletion(
-    request: TabbyApiComponents["schemas"]["CompletionRequest"],
+    // TODO: remove type shim once OpenAPI schema is regenerated with generation_style field
+    request: TabbyApiComponents["schemas"]["CompletionRequest"] & { generation_style?: string },
     signal?: AbortSignal,
     // set to track latency, the properties in latencyStats object will be updated in this function
     latencyStats?: {

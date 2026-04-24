@@ -126,6 +126,9 @@ export type ConfigData = {
   anonymousUsageTracking: {
     disable: boolean;
   };
+  generation: {
+    style: "code" | "hint" | "pseudocode";
+  };
 };
 
 type RecursivePartial<T> = {

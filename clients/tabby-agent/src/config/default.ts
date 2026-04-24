@@ -125,4 +125,7 @@ export const defaultConfigData: ConfigData = {
   anonymousUsageTracking: {
     disable: false,
   },
+  generation: {
+    style: "code",
+  },
 };

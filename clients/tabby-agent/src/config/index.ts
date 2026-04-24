@@ -57,6 +57,9 @@ function mergeConfig(
   if (clientProvided?.anonymousUsageTracking !== undefined) {
     clientProvidedConfig.anonymousUsageTracking = clientProvided.anonymousUsageTracking;
   }
+  if (clientProvided?.generation !== undefined) {
+    clientProvidedConfig.generation = clientProvided.generation;
+  }
   const serverProvidedConfig: PartialConfigData = {};
   if (serverProvided?.disable_client_side_telemetry == true) {
     serverProvidedConfig.anonymousUsageTracking = { disable: true };

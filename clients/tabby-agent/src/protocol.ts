@@ -213,6 +213,12 @@ export type ClientProvidedConfig = {
   anonymousUsageTracking?: {
     disable?: boolean;
   };
+  /**
+   * Controls the generation style for inline completions.
+   */
+  generation?: {
+    style?: "code" | "hint" | "pseudocode";
+  };
 };
 
 export type InlineCompletionTriggerMode = "auto" | "manual";
