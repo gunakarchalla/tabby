@@ -82,6 +82,17 @@ export class Config extends EventEmitter {
     }
   }
 
+  get generationStyle(): "code" | "hint" | "pseudocode" {
+    return this.workspace.get("generationStyle", "code");
+  }
+
+  async updateGenerationStyle(value: "code" | "hint" | "pseudocode") {
+    if (value !== this.generationStyle) {
+      await this.workspace.update("generationStyle", value, ConfigurationTarget.Global);
+      this.emit("updated");
+    }
+  }
+
   get inlineCompletionTriggerMode(): "automatic" | "manual" {
     const advancedSettings = this.workspace.get("settings.advanced", {}) as AdvancedSettings;
     return advancedSettings["inlineCompletion.triggerMode"] || "automatic";
@@ -181,6 +192,9 @@ export class Config extends EventEmitter {
       keybindings: this.keybindings == "tabby-style" ? "tabby-style" : "default",
       anonymousUsageTracking: {
         disable: this.anonymousUsageTrackingDisabled,
+      },
+      generation: {
+        style: this.generationStyle,
       },
     };
   }

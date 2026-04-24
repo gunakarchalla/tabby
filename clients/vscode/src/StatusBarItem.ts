@@ -18,6 +18,7 @@ const backgroundColorWarning = new ThemeColor("statusBarItem.warningBackground")
 
 export class StatusBarItem {
   private item = window.createStatusBarItem(StatusBarAlignment.Right);
+  private styleItem = window.createStatusBarItem(StatusBarAlignment.Right, 99);
 
   constructor(
     private readonly client: Client,
@@ -28,16 +29,35 @@ export class StatusBarItem {
       command: "tabby.commandPalette.trigger",
     };
 
+    this.styleItem.command = "tabby.cycleGenerationStyle";
+    this.styleItem.tooltip = "Click to cycle Tabby generation style (code / hint / pseudocode)";
+
     this.update();
+    this.updateStyleItem();
     this.client.languageClient.onDidChangeState(() => this.update());
     this.client.status.on("didChange", () => this.update());
-    this.config.on("updated", () => this.update());
+    this.config.on("updated", () => {
+      this.update();
+      this.updateStyleItem();
+    });
     window.onDidChangeActiveTextEditor(() => this.update());
   }
 
   registerInContext(context: ExtensionContext) {
     context.subscriptions.push(this.item);
+    context.subscriptions.push(this.styleItem);
     this.item.show();
+    this.updateStyleItem();
+  }
+
+  private updateStyleItem() {
+    const style = this.config.generationStyle;
+    if (style !== "code") {
+      this.styleItem.text = `$(comment) Tabby: ${style}`;
+      this.styleItem.show();
+    } else {
+      this.styleItem.hide();
+    }
   }
 
   update() {

@@ -56,6 +56,13 @@ export class Commands {
     applyCallback: (callback: (() => void) | undefined) => {
       callback?.();
     },
+    cycleGenerationStyle: async () => {
+      const current = this.config.generationStyle;
+      const next =
+        current === "code" ? "hint" : current === "hint" ? "pseudocode" : "code";
+      await this.config.updateGenerationStyle(next);
+      window.showInformationMessage(`Tabby generation style: ${next}`);
+    },
     toggleInlineCompletionTriggerMode: async (value: "automatic" | "manual" | undefined) => {
       let target = value;
       if (!target) {

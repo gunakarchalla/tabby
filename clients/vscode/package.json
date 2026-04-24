@@ -179,6 +179,11 @@
         "command": "tabby.terminal.addSelectionToChat",
         "title": "Add Selection to Chat",
         "category": "Tabby"
+      },
+      {
+        "command": "tabby.cycleGenerationStyle",
+        "title": "Cycle Generation Style (Code/Hint/Pseudocode)",
+        "category": "Tabby"
       }
     ],
     "submenus": [
@@ -402,6 +407,21 @@
             "type": "boolean",
             "default": false,
             "markdownDescription": "**Disable anonymous usage tracking**  \nTabby collects aggregated anonymous usage data and sends it to the Tabby team to help improve our products.  \nYour code, generated completions, or any identifying information is never tracked or transmitted.  \nFor more details on data collection, please check our [online documentation](https://tabby.tabbyml.com/docs/extensions/configurations#usage-collection)."
+          },
+          "tabby.generationStyle": {
+            "type": "string",
+            "enum": [
+              "code",
+              "hint",
+              "pseudocode"
+            ],
+            "default": "code",
+            "description": "Output style for Tabby code suggestions.",
+            "enumDescriptions": [
+              "Real code (default)",
+              "Short natural-language hint wrapped in a language-native comment",
+              "BEGIN..END pseudocode wrapped in a language-native comment"
+            ]
           },
           "tabby.settings.advanced": {
             "default": {},

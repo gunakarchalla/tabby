@@ -99,6 +99,18 @@ export class CommandPalette {
       }
     }
 
+    // Generation style section
+    items.push({
+      label: "generation style",
+      kind: QuickPickItemKind.Separator,
+    });
+    items.push({
+      label: `Generation Style: ${this.config.generationStyle}`,
+      description: "Cycle between code / hint / pseudocode",
+      command: "tabby.cycleGenerationStyle",
+      alwaysShow: true,
+    });
+
     // Settings section
     items.push(
       {
