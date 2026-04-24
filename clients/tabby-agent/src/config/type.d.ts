@@ -86,8 +86,8 @@ export type ConfigData = {
       responseDocumentTag: string[];
       responseCommentTag: string[] | undefined;
       promptTemplate: {
-        replace: string;
-        insert: string;
+        replace: { code: string; hint: string; pseudocode: string };
+        insert: { code: string; hint: string; pseudocode: string };
       };
       presetCommands: Record<
         string,

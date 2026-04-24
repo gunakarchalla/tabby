@@ -64,3 +64,10 @@ Code to be inserted:
 </APPLYCODE>
 
 Provide only the appropriate range of a similar-length code segment, remembering that line numbers are one-based, and both startLine and endLine are inclusive (closed interval).
+
+## Comment-only blocks
+
+If the provided block is comment-only (e.g. a natural-language hint or a
+`BEGIN..END` pseudocode block inside comments) and no matching code is found,
+choose the insertion point immediately BEFORE the function or top-level block
+nearest the cursor. If no such anchor exists, return the cursor line itself.

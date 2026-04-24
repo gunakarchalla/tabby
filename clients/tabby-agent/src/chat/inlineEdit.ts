@@ -198,7 +198,9 @@ export class ChatEditProvider implements Feature {
       promptTemplate = presetConfig.promptTemplate;
       userCommand = params.command.substring(presetCommand.length);
     } else {
-      promptTemplate = insertMode ? config.promptTemplate.insert : config.promptTemplate.replace;
+      const style = this.configurations.getMergedConfig().generation.style;
+      const variant = style === "hint" ? "hint" : style === "pseudocode" ? "pseudocode" : "code";
+      promptTemplate = insertMode ? config.promptTemplate.insert[variant] : config.promptTemplate.replace[variant];
       userCommand = params.command;
     }
 

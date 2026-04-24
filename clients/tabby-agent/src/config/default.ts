@@ -4,6 +4,10 @@ import generateCommitMessagePrompt from "../chat/prompts/generate-commit-message
 import generateDocsPrompt from "../chat/prompts/generate-docs.md";
 import editCommandReplacePrompt from "../chat/prompts/edit-command-replace.md";
 import editCommandInsertPrompt from "../chat/prompts/edit-command-insert.md";
+import editCommandReplaceHintPrompt from "../chat/prompts/edit-command-replace-hint.md";
+import editCommandInsertHintPrompt from "../chat/prompts/edit-command-insert-hint.md";
+import editCommandReplacePseudocodePrompt from "../chat/prompts/edit-command-replace-pseudocode.md";
+import editCommandInsertPseudocodePrompt from "../chat/prompts/edit-command-insert-pseudocode.md";
 import generateSmartApplyPrompt from "../chat/prompts/generate-smart-apply.md";
 import provideSmartApplyLineRangePrompt from "../chat/prompts/provide-smart-apply-line-range.md";
 import includeFileContextList from "../chat/prompts/include-file-context-list.md";
@@ -81,8 +85,8 @@ export const defaultConfigData: ConfigData = {
       responseDocumentTag: ["<GENERATEDCODE>", "</GENERATEDCODE>"],
       responseCommentTag: undefined,
       promptTemplate: {
-        replace: editCommandReplacePrompt,
-        insert: editCommandInsertPrompt,
+        replace: { code: editCommandReplacePrompt, hint: editCommandReplaceHintPrompt, pseudocode: editCommandReplacePseudocodePrompt },
+        insert: { code: editCommandInsertPrompt, hint: editCommandInsertHintPrompt, pseudocode: editCommandInsertPseudocodePrompt },
       },
       presetCommands: {
         "/doc": {
