@@ -41,9 +41,10 @@ import type {
 import * as semver from "semver";
 import debounce from "debounce";
 import { v4 as uuid } from "uuid";
-import type { StatusInfo, Config } from "tabby-agent";
+import type { StatusInfo, Config as AgentConfig } from "tabby-agent";
 import type { GitProvider, Repository } from "../git/GitProvider";
 import type { Client as LspClient } from "../lsp/client";
+import type { Config } from "../Config";
 import { createClient } from "./createClient";
 import { isBrowser } from "../env";
 import { getLogger } from "../logger";
@@ -71,7 +72,7 @@ export class ChatWebview extends EventEmitter {
   private client: ServerApiList | undefined = undefined;
 
   // The current server config used to load the chat panel.
-  private currentConfig: Config["server"] | undefined = undefined;
+  private currentConfig: AgentConfig["server"] | undefined = undefined;
 
   // A number to ensure the html is reloaded when assigned a new value
   private reloadCount = 0;
@@ -95,6 +96,7 @@ export class ChatWebview extends EventEmitter {
     private readonly context: ExtensionContext,
     private readonly lspClient: LspClient,
     private readonly gitProvider: GitProvider,
+    private readonly config?: Config,
   ) {
     super();
   }
@@ -116,6 +118,18 @@ export class ChatWebview extends EventEmitter {
       }),
     );
     this.checkStatusAndLoadContent();
+
+    if (this.config) {
+      const configListener = () => {
+        this.client?.["0.11.0"]?.updateGenerationStyle(this.config!.generationStyle);
+      };
+      this.config.on("updated", configListener);
+      this.disposables.push(
+        new Disposable(() => {
+          this.config!.off("updated", configListener);
+        }),
+      );
+    }
 
     this.disposables.push(
       window.onDidChangeActiveTextEditor((editor) => {
@@ -822,6 +836,10 @@ export class ChatWebview extends EventEmitter {
         const terminal = window.createTerminal("Tabby");
         terminal.show();
         terminal.sendText(command);
+      },
+
+      getGenerationStyle: async () => {
+        return this.config?.generationStyle ?? "code";
       },
     });
   }

@@ -2,6 +2,7 @@ import { ExtensionContext, WebviewViewProvider, WebviewView } from "vscode";
 import { ChatWebview } from "./webview";
 import type { ContextVariables } from "../ContextVariables";
 import type { Client } from "../lsp/client";
+import type { Config } from "../Config";
 import { GitProvider } from "../git/GitProvider";
 
 export class ChatSidePanelProvider implements WebviewViewProvider {
@@ -12,8 +13,9 @@ export class ChatSidePanelProvider implements WebviewViewProvider {
     private readonly client: Client,
     private readonly contextVariables: ContextVariables,
     private readonly gitProvider: GitProvider,
+    private readonly config?: Config,
   ) {
-    this.chatWebview = new ChatWebview(this.context, this.client, this.gitProvider);
+    this.chatWebview = new ChatWebview(this.context, this.client, this.gitProvider, this.config);
     this.contextVariables.chatSidePanelStatus = undefined;
     this.chatWebview.on("didChangedStatus", (status: "loading" | "error" | "ready") => {
       this.contextVariables.chatSidePanelStatus = status;

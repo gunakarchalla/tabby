@@ -61,6 +61,9 @@ export default function ChatPage() {
   >([])
   const [pendingActiveSelection, setPendingActiveSelection] =
     useState<EditorContext | null>(null)
+  const [generationStyle, setGenerationStyle] = useState<
+    'code' | 'hint' | 'pseudocode'
+  >('code')
   const [errorMessage, setErrorMessage] = useState<ErrorMessage | null>(null)
   const [isRefreshLoading, setIsRefreshLoading] = useState(false)
 
@@ -173,7 +176,10 @@ export default function ChatPage() {
         themeClass + ` client client-${client}`
     },
     updateActiveSelection,
-    navigate
+    navigate,
+    updateGenerationStyle: async (style: 'code' | 'hint' | 'pseudocode') => {
+      setGenerationStyle(style)
+    }
   })
 
   useEffect(() => {
@@ -253,6 +259,10 @@ export default function ChatPage() {
     if (server) {
       server?.onLoaded?.({
         apiVersion: TABBY_CHAT_PANEL_API_VERSION
+      })
+
+      server?.getGenerationStyle?.().then(style => {
+        if (style) setGenerationStyle(style)
       })
 
       setIsServerLoaded(true)
@@ -467,6 +477,7 @@ export default function ChatPage() {
         listSymbols={isInEditor && server?.listSymbols}
         runShell={isInEditor && server?.runShell}
         getChanges={isInEditor && server?.getChanges}
+        generationStyle={generationStyle}
       />
     </ErrorBoundary>
   )

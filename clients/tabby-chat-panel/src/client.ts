@@ -130,6 +130,12 @@ export interface ClientApi {
    * @returns void
    */
   runShell?: (command: string) => Promise<void>
+
+  /**
+   * Get the current generation style configured in the IDE.
+   * @returns the current generation style: 'code' | 'hint' | 'pseudocode'
+   */
+  getGenerationStyle?: () => Promise<'code' | 'hint' | 'pseudocode'>
 }
 
 /**

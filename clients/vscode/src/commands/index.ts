@@ -294,7 +294,7 @@ export class Commands {
       });
     },
     "chat.createPanel": async () => {
-      await createChatPanel(this.context, this.client, this.gitProvider);
+      await createChatPanel(this.context, this.client, this.gitProvider, this.config);
     },
     "chat.navigate.newChat": async () => {
       this.chatSidePanelProvider.chatWebview.navigate("new-chat");

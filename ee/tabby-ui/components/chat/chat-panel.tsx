@@ -78,7 +78,8 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
       repos,
       initialized,
       setRelevantContext,
-      openInEditor
+      openInEditor,
+      generationStyle
     } = React.useContext(ChatContext)
     const enableActiveSelection = useChatStore(
       state => state.enableActiveSelection
@@ -262,6 +263,14 @@ export const ChatPanel = React.forwardRef<ChatPanelRef, ChatPanelProps>(
                 repos={repos}
                 isInitializing={!initialized}
               />
+              {generationStyle && generationStyle !== 'code' && (
+                <Badge
+                  variant="secondary"
+                  className="inline-flex h-7 flex-nowrap items-center gap-1 rounded-md px-2 text-sm font-semibold"
+                >
+                  Style: {generationStyle}
+                </Badge>
+              )}
               {activeSelection ? (
                 <Badge
                   id="active-selection-badge"

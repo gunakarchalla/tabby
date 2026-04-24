@@ -1,13 +1,14 @@
 import type { EditorContext } from './types'
 
-export const serverApiVersionList = ['0.8.0', '0.9.0', '0.10.0']
+export const serverApiVersionList = ['0.8.0', '0.9.0', '0.10.0', '0.11.0']
 
-export type ServerApi = ServerApiV0_10
+export type ServerApi = ServerApiV0_11
 
 export interface ServerApiList {
   '0.8.0': ServerApiV0_8
   '0.9.0': ServerApiV0_9 | undefined
   '0.10.0': ServerApiV0_10 | undefined
+  '0.11.0': ServerApiV0_11 | undefined
 }
 
 export interface ServerApiV0_8 {
@@ -80,6 +81,15 @@ export interface ServerApiV0_10 extends ServerApiV0_9 {
    * @since 0.10.0 added terminal context support
    */
   addRelevantContext: (context: EditorContext) => Promise<void>
+}
+
+export interface ServerApiV0_11 extends ServerApiV0_10 {
+  /**
+   * Push a new generation style to the chat panel when the user changes it in the IDE.
+   * @param style the new generation style: 'code' | 'hint' | 'pseudocode'
+   * @since 0.11.0
+   */
+  updateGenerationStyle: (style: 'code' | 'hint' | 'pseudocode') => Promise<void>
 }
 
 /**

@@ -71,6 +71,32 @@ import { QuestionAnswerList } from './question-answer'
 import { QaPairSkeleton } from './skeletion'
 import { ChatProps, ChatRef } from './types'
 
+function buildStyleInstruction(
+  style: 'code' | 'hint' | 'pseudocode'
+): string | null {
+  if (style === 'hint') {
+    return (
+      'When showing code, output ONLY a natural-language HINT describing what the code would do, ' +
+      'prefixed with "hint: ". Detect the target language\'s comment style from context:\n' +
+      '- Line-comment languages (//, #, --, etc.): prefix the single line with the marker.\n' +
+      '- Block-comment-only languages (HTML <!-- -->, CSS /* */, etc.): wrap the whole block ONCE with the markers.\n' +
+      'Do not emit executable code. Do not explain outside the comment.'
+    )
+  }
+  if (style === 'pseudocode') {
+    return (
+      'When showing code, output ONLY language-agnostic PSEUDOCODE framed by standard ' +
+      '`BEGIN` and `END` delimiters on their own lines.\n' +
+      'Use uppercase keywords: BEGIN, END, IF..THEN, ELSE, FOR..DO, WHILE..DO, RETURN, SET..TO, CALL.\n' +
+      "Detect the target language's comment style:\n" +
+      '- Line-comment languages: prefix every line (including BEGIN/END) with the marker.\n' +
+      '- Block-comment-only languages: open the comment on its own line, then BEGIN, body, END, then close the comment on its own line.\n' +
+      'Do not emit executable code. Do not explain outside the comments.'
+    )
+  }
+  return null
+}
+
 export const Chat = React.forwardRef<ChatRef, ChatProps>(
   (
     {
@@ -103,6 +129,7 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
       setShowHistory,
       runShell,
       getChanges,
+      generationStyle = 'code',
       ...props
     },
     ref
@@ -568,17 +595,21 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
           }
         })
 
-      const content = userMessage.content
+      const rawContent = userMessage.content
+      const styleInstruction = buildStyleInstruction(generationStyle)
+      const content = styleInstruction
+        ? `${rawContent}\n\n${styleInstruction}`
+        : rawContent
       const docQuery: InputMaybe<DocQueryInput> = codeSourceId
         ? {
-            content,
+            content: rawContent,
             sourceIds: [codeSourceId],
             searchPublic: false
           }
         : null
       const codeQuery: InputMaybe<CodeQueryInput> = codeSourceId
         ? {
-            content,
+            content: rawContent,
             sourceId: codeSourceId,
             filepath: attachmentCode?.[0]?.filepath
           }
@@ -882,7 +913,8 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
           runShell,
           getChanges,
           contextInfo: contextInfoData?.contextInfo,
-          fetchingContextInfo: fetchingContextInfo
+          fetchingContextInfo: fetchingContextInfo,
+          generationStyle
         }}
       >
         <div className="flex justify-center overflow-x-hidden" {...props}>
