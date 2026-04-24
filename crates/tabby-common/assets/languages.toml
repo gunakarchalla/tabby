@@ -282,22 +282,33 @@ top_level_keywords = ["function", "library", "install.packages"]
 [[config]]
 languages = ["css"]
 exts = ["css"]
+block_comment_start = "/*"
+block_comment_end = "*/"
 
 [[config]]
 languages = ["dockerfile"]
 exts = ["Dockerfile"]
+line_comment = "#"
 
 [[config]]
 languages = ["haskell"]
 exts = ["hs"]
+line_comment = "--"
+block_comment_start = "{-"
+block_comment_end = "-}"
 
 [[config]]
 languages = ["html"]
 exts = ["html"]
+block_comment_start = "<!--"
+block_comment_end = "-->"
 
 [[config]]
 languages = ["julia"]
 exts = ["jl"]
+line_comment = "#"
+block_comment_start = "#="
+block_comment_end = "=#"
 
 [[config]]
 languages = ["lua"]
@@ -330,11 +341,14 @@ top_level_keywords = [
 [[config]]
 languages = ["makefile"]
 exts = ["Makefile"]
+line_comment = "#"
 
 [[config]]
 languages = ["markdown"]
 exts = ["md", "markdown"]
 chunk_size = 1536
+block_comment_start = "<!--"
+block_comment_end = "-->"
 
 [[config]]
 languages = ["txt"]
@@ -344,14 +358,21 @@ chunk_size = 1536
 [[config]]
 languages = ["perl"]
 exts = ["pl", "pm", "pod", "perl"]
+line_comment = "#"
 
 [[config]]
 languages = ["powershell"]
 exts = ["ps1", "psd1", "psm1"]
+line_comment = "#"
+block_comment_start = "<#"
+block_comment_end = "#>"
 
 [[config]]
 languages = ["sql"]
 exts = ["sql"]
+line_comment = "--"
+block_comment_start = "/*"
+block_comment_end = "*/"
 
 [[config]]
 languages = ["scala"]
@@ -397,18 +418,23 @@ top_level_keywords = [
 [[config]]
 languages = ["shellscript"]
 exts = ["sh", "bash", "command", "zsh"]
+line_comment = "#"
 
 [[config]]
 languages = ["tex"]
 exts = ["tex"]
+line_comment = "%"
 
 [[config]]
 languages = ["vb"]
 exts = ["vb"]
+line_comment = "'"
 
 [[config]]
 languages = ["ocaml"]
 exts = ["ml", "mli"]
+block_comment_start = "(*"
+block_comment_end = "*)"
 top_level_keywords = [
   "and",
   "as",

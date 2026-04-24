@@ -60,10 +60,42 @@ pub struct Language {
 
     top_level_keywords: Option<Vec<String>>,
     pub line_comment: Option<String>,
+
+    #[serde(default)]
+    pub block_comment_start: Option<String>,
+    #[serde(default)]
+    pub block_comment_end: Option<String>,
+
     pub chunk_size: Option<usize>,
 }
 
+#[derive(Debug, Clone)]
+pub enum CommentStyle<'a> {
+    /// Single-marker-per-line languages: "#", "//", "--", etc.
+    Line(&'a str),
+    /// Bracketed block-comment languages: ("<!--", "-->"), ("/*", "*/"), ...
+    Block(&'a str, &'a str),
+    /// Neither (txt, bare Dockerfile): caller should downgrade to "code" style.
+    None,
+}
+
 impl Language {
+    /// Resolve the preferred comment style. Prefer line-comment when both are
+    /// defined (PHP has both `//` and `/* */` — use `//`).
+    pub fn comment_style(&self) -> CommentStyle<'_> {
+        if let Some(lc) = &self.line_comment {
+            if !lc.is_empty() {
+                return CommentStyle::Line(lc.as_str());
+            }
+        }
+        match (&self.block_comment_start, &self.block_comment_end) {
+            (Some(s), Some(e)) if !s.is_empty() && !e.is_empty() => {
+                CommentStyle::Block(s.as_str(), e.as_str())
+            }
+            _ => CommentStyle::None,
+        }
+    }
+
     pub fn get_stop_words(&self) -> Vec<String> {
         let mut out = vec![];
 
@@ -127,6 +159,8 @@ lazy_static! {
     pub static ref UNKNOWN_LANGUAGE: Language = Language {
         languages: vec!["unknown".to_owned()],
         line_comment: Some("".into()),
+        block_comment_start: None,
+        block_comment_end: None,
         top_level_keywords: Some(vec![]),
         exts: vec![],
         chunk_size: None
@@ -144,4 +178,66 @@ pub fn get_language(language: &str) -> &'static Language {
 pub fn get_language_by_ext(ext: &OsStr) -> Option<&'static Language> {
     let ext = ext.to_str()?;
     EXTS_LANGUAGE_MAPPING.get(ext).map(|x| get_language(x))
+}
+
+#[cfg(test)]
+mod comment_style_tests {
+    use super::*;
+
+    #[test]
+    fn line_preferred_over_block() {
+        let php = get_language("php");
+        assert!(matches!(php.comment_style(), CommentStyle::Line("//")));
+    }
+
+    #[test]
+    fn python_is_line() {
+        let python = get_language("python");
+        assert!(matches!(python.comment_style(), CommentStyle::Line("#")));
+    }
+
+    #[test]
+    fn html_is_block() {
+        let html = get_language("html");
+        assert!(matches!(
+            html.comment_style(),
+            CommentStyle::Block("<!--", "-->")
+        ));
+    }
+
+    #[test]
+    fn css_is_block() {
+        let css = get_language("css");
+        assert!(matches!(
+            css.comment_style(),
+            CommentStyle::Block("/*", "*/")
+        ));
+    }
+
+    #[test]
+    fn ocaml_is_block() {
+        let ocaml = get_language("ocaml");
+        assert!(matches!(
+            ocaml.comment_style(),
+            CommentStyle::Block("(*", "*)")
+        ));
+    }
+
+    #[test]
+    fn txt_is_none() {
+        let txt = get_language("txt");
+        assert!(matches!(txt.comment_style(), CommentStyle::None));
+    }
+
+    #[test]
+    fn sql_has_line_comment() {
+        let sql = get_language("sql");
+        assert!(matches!(sql.comment_style(), CommentStyle::Line("--")));
+    }
+
+    #[test]
+    fn haskell_is_line() {
+        let haskell = get_language("haskell");
+        assert!(matches!(haskell.comment_style(), CommentStyle::Line("--")));
+    }
 }
