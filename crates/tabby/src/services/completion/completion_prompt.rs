@@ -4,11 +4,23 @@ use strfmt::strfmt;
 use tabby_common::{
     api::code::{CodeSearch, CodeSearchError, CodeSearchParams, CodeSearchQuery},
     axum::AllowedCodeRepository,
-    languages::get_language,
+    languages::{get_language, CommentStyle},
 };
 use tracing::warn;
 
 use super::{Segments, Snippet};
+
+#[derive(Debug, Clone)]
+pub struct StyledPrompt {
+    /// Full FIM prompt (after template formatting + snippet rewrite).
+    pub prompt: String,
+    /// Prepend to the raw model output to reconstruct the full visible ghost text.
+    pub display_prefix: Option<String>,
+    /// Append to the raw model output (deduped) to reconstruct the full visible ghost text.
+    pub display_suffix: Option<String>,
+    /// The style actually used (may be downgraded to "code" for no-comment languages).
+    pub effective_style: String,
+}
 
 pub struct PromptBuilder {
     code_search_params: CodeSearchParams,
@@ -88,6 +100,83 @@ impl PromptBuilder {
     pub fn build(&self, language: &str, segments: Segments, snippets: &[Snippet]) -> String {
         let segments = rewrite_with_snippets(language, segments, snippets);
         self.build_prompt(segments.prefix, get_default_suffix(segments.suffix))
+    }
+
+    pub fn build_styled(
+        &self,
+        language: &str,
+        segments: Segments,
+        snippets: &[Snippet],
+        style: &str,
+    ) -> StyledPrompt {
+        if style == "code" {
+            return StyledPrompt {
+                prompt: self.build(language, segments, snippets),
+                display_prefix: None,
+                display_suffix: None,
+                effective_style: "code".into(),
+            };
+        }
+
+        let lang = get_language(language);
+        let comment_style = lang.comment_style();
+
+        let (prefix_injection, suffix_injection, display_prefix, display_suffix) =
+            match (style, &comment_style) {
+                ("hint", CommentStyle::Line(m)) => (
+                    format!("\n{m} hint: "),
+                    String::new(),
+                    Some(format!("\n{m} hint: ")),
+                    None,
+                ),
+                ("pseudocode", CommentStyle::Line(m)) => (
+                    format!("\n{m} BEGIN\n{m} "),
+                    format!("\n{m} END\n"),
+                    Some(format!("\n{m} BEGIN\n{m} ")),
+                    Some(format!("\n{m} END")),
+                ),
+                ("hint", CommentStyle::Block(s, e)) => (
+                    format!("\n{s} hint: "),
+                    format!(" {e}\n"),
+                    Some(format!("\n{s} hint: ")),
+                    Some(format!(" {e}")),
+                ),
+                ("pseudocode", CommentStyle::Block(s, e)) => (
+                    format!("\n{s}\nBEGIN\n  "),
+                    format!("\nEND\n{e}\n"),
+                    Some(format!("\n{s}\nBEGIN\n  ")),
+                    Some(format!("\nEND\n{e}")),
+                ),
+                // No-comment language: downgrade to code
+                _ => {
+                    return StyledPrompt {
+                        prompt: self.build(language, segments, snippets),
+                        display_prefix: None,
+                        display_suffix: None,
+                        effective_style: "code".into(),
+                    };
+                }
+            };
+
+        let rewritten = rewrite_with_snippets(language, segments, snippets);
+        let prefix = rewritten.prefix + prefix_injection.as_str();
+        let raw_suffix = rewritten.suffix.unwrap_or_default();
+        let suffix = if raw_suffix.is_empty() {
+            if suffix_injection.is_empty() {
+                "\n".to_string()
+            } else {
+                suffix_injection
+            }
+        } else {
+            format!("{suffix_injection}{raw_suffix}")
+        };
+
+        StyledPrompt {
+            prompt: self.build_prompt(prefix, suffix),
+            display_prefix,
+            display_suffix,
+            effective_style: style.to_string(),
+        }
     }
 }
 
@@ -456,6 +545,64 @@ mod tests {
             let segments = make_segment("".into(), Some("".into()));
             assert_eq!(pb.build(language, segments, snippets), "");
         }
+    }
+
+    #[test]
+    fn test_build_styled_python_hint() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("def foo():\n    ".into(), Some("\n".into()));
+        let styled = pb.build_styled("python", seg, &[], "hint");
+        assert_eq!(styled.effective_style, "hint");
+        assert!(styled.prompt.contains("# hint: "));
+        assert_eq!(styled.display_prefix.as_deref(), Some("\n# hint: "));
+        assert!(styled.display_suffix.is_none());
+    }
+
+    #[test]
+    fn test_build_styled_python_pseudocode() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("def fib(n):\n    ".into(), Some("\n".into()));
+        let styled = pb.build_styled("python", seg, &[], "pseudocode");
+        assert_eq!(styled.effective_style, "pseudocode");
+        assert!(styled.prompt.contains("# BEGIN"));
+        assert!(styled.prompt.contains("# END"));
+        assert_eq!(styled.display_prefix.as_deref(), Some("\n# BEGIN\n# "));
+        assert_eq!(styled.display_suffix.as_deref(), Some("\n# END"));
+    }
+
+    #[test]
+    fn test_build_styled_html_pseudocode() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("<body>\n".into(), Some("</body>".into()));
+        let styled = pb.build_styled("html", seg, &[], "pseudocode");
+        assert_eq!(styled.effective_style, "pseudocode");
+        assert!(styled.prompt.contains("<!--"));
+        assert!(styled.prompt.contains("BEGIN"));
+        assert!(styled.prompt.contains("END"));
+        assert!(styled.prompt.contains("-->"));
+    }
+
+    #[test]
+    fn test_build_styled_html_hint() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("<body>\n".into(), Some("</body>".into()));
+        let styled = pb.build_styled("html", seg, &[], "hint");
+        assert_eq!(styled.effective_style, "hint");
+        assert!(styled.prompt.contains("<!-- hint:"));
+        assert_eq!(styled.display_prefix.as_deref(), Some("\n<!-- hint: "));
+        assert_eq!(styled.display_suffix.as_deref(), Some(" -->"));
+    }
+
+    #[test]
+    fn test_build_styled_code_passthrough() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("def foo():\n    ".into(), Some("\n".into()));
+        let styled = pb.build_styled("python", seg.clone(), &[], "code");
+        let plain = pb.build("python", seg, &[]);
+        assert_eq!(styled.effective_style, "code");
+        assert_eq!(styled.prompt, plain);
+        assert!(styled.display_prefix.is_none());
+        assert!(styled.display_suffix.is_none());
     }
 
     #[test]

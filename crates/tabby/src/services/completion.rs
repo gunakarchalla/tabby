@@ -1,6 +1,8 @@
 mod completion_prompt;
 mod next_edit_prompt;
 
+use completion_prompt::StyledPrompt;
+
 use std::sync::Arc;
 
 use regex::Regex;
@@ -63,10 +65,21 @@ pub struct CompletionRequest {
     /// to predict the next edit the user will make.
     #[serde(default = "default_standard_mode")]
     mode: String,
+
+    /// Generation style for the output.
+    /// - "code" (default): real code.
+    /// - "hint": natural-language hint wrapped in a language-native comment.
+    /// - "pseudocode": BEGIN..END pseudocode wrapped in a language-native comment.
+    #[serde(default = "default_code_style")]
+    generation_style: String,
 }
 
 pub fn default_standard_mode() -> String {
     "standard".to_string()
+}
+
+pub fn default_code_style() -> String {
+    "code".to_string()
 }
 
 /// Contains information about edit history for next edit suggestion mode
@@ -104,6 +117,10 @@ impl CompletionRequest {
     /// Returns true if the request is for next edit suggestion mode.
     fn is_next_edit_suggestion_mode(&self) -> bool {
         self.mode == "next_edit_suggestion"
+    }
+
+    fn is_non_code_style(&self) -> bool {
+        self.generation_style == "hint" || self.generation_style == "pseudocode"
     }
 }
 
@@ -253,6 +270,9 @@ pub struct CompletionResponse {
 
     #[serde(default = "default_standard_mode")]
     mode: String,
+
+    #[serde(default = "default_code_style")]
+    generation_style: String,
 }
 
 impl CompletionResponse {
@@ -261,12 +281,14 @@ impl CompletionResponse {
         choices: Vec<Choice>,
         debug_data: Option<DebugData>,
         mode: String,
+        generation_style: String,
     ) -> Self {
         Self {
             id,
             choices,
             debug_data,
             mode,
+            generation_style,
         }
     }
 }
@@ -335,6 +357,7 @@ impl CompletionService {
         max_input_length: usize,
         max_output_tokens: usize,
         mode: String,
+        generation_style: String,
     ) -> CodeGenerationOptions {
         let mut builder = CodeGenerationOptionsBuilder::default();
         builder
@@ -349,6 +372,7 @@ impl CompletionService {
         });
 
         builder.mode(mode);
+        builder.generation_style(generation_style);
 
         builder
             .build()
@@ -377,11 +401,21 @@ impl CompletionService {
             self.config.max_input_length,
             self.config.max_decoding_tokens,
             request.mode.clone(),
+            request.generation_style.clone(),
         );
 
         let mut use_crlf = false;
-        let (prompt, segments, snippets) = if let Some(prompt) = request.raw_prompt() {
-            (prompt, None, vec![])
+        let (styled, segments, snippets) = if let Some(prompt) = request.raw_prompt() {
+            (
+                StyledPrompt {
+                    prompt,
+                    display_prefix: None,
+                    display_suffix: None,
+                    effective_style: "code".into(),
+                },
+                None,
+                vec![],
+            )
         } else if let Some(segments) = request.segments.as_ref() {
             if contains_crlf(segments) {
                 use_crlf = true;
@@ -395,24 +429,31 @@ impl CompletionService {
                     request.disable_retrieval_augmented_code_completion(),
                 )
                 .await;
-            let prompt = self
-                .prompt_builder
-                .build(&language, segments.clone(), &snippets);
-
-            (override_prompt(prompt, use_crlf), Some(segments), snippets)
+            let styled = self.prompt_builder.build_styled(
+                &language,
+                segments.clone(),
+                &snippets,
+                &request.generation_style,
+            );
+            let styled = StyledPrompt {
+                prompt: override_prompt(styled.prompt, use_crlf),
+                ..styled
+            };
+            (styled, Some(segments), snippets)
         } else {
             return Err(CompletionError::EmptyPrompt);
         };
 
-        let generated_text =
-            override_generated_text(self.engine.generate(&prompt, options).await, use_crlf);
+        let raw = self.engine.generate(&styled.prompt, options).await;
+        let wrapped = wrap_with_style(raw, &styled);
+        let generated_text = override_generated_text(wrapped, use_crlf);
 
         self.logger.log(
             request.user.clone(),
             Event::Completion {
                 completion_id: completion_id.clone(),
                 language,
-                prompt: prompt.clone(),
+                prompt: styled.prompt.clone(),
                 segments: segments.cloned().map(|x| x.into()),
                 choices: vec![api::event::Choice {
                     index: 0,
@@ -427,7 +468,7 @@ impl CompletionService {
             .as_ref()
             .map(|debug_options| DebugData {
                 snippets: debug_options.return_snippets.then_some(snippets),
-                prompt: debug_options.return_prompt.then_some(prompt),
+                prompt: debug_options.return_prompt.then_some(styled.prompt),
             });
 
         Ok(CompletionResponse::new(
@@ -435,6 +476,7 @@ impl CompletionService {
             vec![Choice::new(generated_text)],
             debug_data,
             "standard".to_string(),
+            request.generation_style.clone(),
         ))
     }
 
@@ -464,6 +506,7 @@ impl CompletionService {
             self.config.max_input_length,
             self.config.max_decoding_tokens * 2,
             request.mode.clone(),
+            "code".to_string(),
         );
 
         let generated_text = self.engine.generate(&prompt, options).await;
@@ -496,8 +539,52 @@ impl CompletionService {
             vec![Choice::new(generated_text)],
             debug_data,
             "next_edit_suggestion".to_string(),
+            "code".to_string(),
         ))
     }
+}
+
+/// Reconstruct the full ghost text from the model's raw output by prepending
+/// `display_prefix` and appending `display_suffix` (with dedup so we don't
+/// double-emit `# END` or `-->` if the model already produced them).
+fn wrap_with_style(raw: String, styled: &StyledPrompt) -> String {
+    if styled.effective_style == "code" {
+        return raw;
+    }
+
+    let mut out = raw.trim_end().to_string();
+
+    // Dedup-append display_suffix.
+    if let Some(suffix) = &styled.display_suffix {
+        let trimmed_suffix = suffix.trim();
+        if !trimmed_suffix.is_empty() && !out.trim_end().ends_with(trimmed_suffix) {
+            out.push_str(suffix);
+        }
+    }
+
+    // Prepend display_prefix.
+    if let Some(prefix) = &styled.display_prefix {
+        out = format!("{prefix}{out}");
+    }
+
+    // Empty-output fallback.
+    let only_markers = styled.display_prefix.as_deref().unwrap_or("").to_string()
+        + styled.display_suffix.as_deref().unwrap_or("");
+    if out.trim().is_empty() || out.trim() == only_markers.trim() {
+        let placeholder = match styled.effective_style.as_str() {
+            "hint" => "(no hint generated)",
+            "pseudocode" => "(no pseudocode generated)",
+            _ => return out,
+        };
+        out = format!(
+            "{}{}{}",
+            styled.display_prefix.as_deref().unwrap_or(""),
+            placeholder,
+            styled.display_suffix.as_deref().unwrap_or(""),
+        );
+    }
+
+    out
 }
 
 fn contains_crlf(segments: &Segments) -> bool {
@@ -640,6 +727,7 @@ mod tests {
             temperature: None,
             seed: None,
             mode: "standard".into(),
+            generation_style: "code".into(),
         };
 
         let allowed_code_repository = AllowedCodeRepository::default();

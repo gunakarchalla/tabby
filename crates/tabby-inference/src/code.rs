@@ -28,6 +28,9 @@ pub struct CodeGenerationOptions {
 
     #[builder(default = "\"standard\".to_string()")]
     pub mode: String,
+
+    #[builder(default = "\"code\".to_string()")]
+    pub generation_style: String,
 }
 
 /// CodeGeneration utilizes the CompletionStream to generate code completions.
@@ -78,9 +81,10 @@ impl CodeGeneration {
         // For standard mode, use streaming with stop conditions
         let s = stream! {
             let mut text = String::new();
-            let mut stop_condition = self.stop_condition_factory.create(
+            let mut stop_condition = self.stop_condition_factory.create_with_style(
                 prompt,
                 options.language,
+                &options.generation_style,
             );
 
             for await new_text in self.imp.generate(prompt, completion_options).await {
