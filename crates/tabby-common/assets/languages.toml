@@ -2,12 +2,16 @@
 languages = ["python"]
 exts = ["py"]
 line_comment = "#"
+block_comment_start = "'''"
+block_comment_end = "'''"
 top_level_keywords = ["def", "from", "class", "import"]
 
 [[config]]
 languages = ["rust"]
 exts = ["rs"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "fn",
     "trait",
@@ -25,6 +29,8 @@ top_level_keywords = [
 languages = ["java"]
 exts = ["java"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "abstract",
     "public",
@@ -48,6 +54,8 @@ top_level_keywords = [
 languages = ["kotlin"]
 exts = ["kt", "kts"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "abstract",
     "public",
@@ -73,6 +81,8 @@ top_level_keywords = [
 languages = ["javascript-typescript", "javascript", "typescript", "javascriptreact", "typescriptreact"]
 exts = ["js", "ts", "jsx", "tsx", "mjs", "mts"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "abstract",
     "async",
@@ -93,6 +103,8 @@ top_level_keywords = [
 languages = ["go"]
 exts = ["go"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "func",
     "interface",
@@ -108,6 +120,8 @@ top_level_keywords = [
 languages = ["ruby"]
 exts = ["rb"]
 line_comment = "#"
+block_comment_start = "=begin"
+block_comment_end = "=end"
 top_level_keywords = [
     "begin",
     "class",
@@ -125,6 +139,8 @@ top_level_keywords = [
 languages = ["c"]
 exts = ["c", "h"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "const",
     "enum",
@@ -142,6 +158,8 @@ top_level_keywords = [
 languages = ["cpp"]
 exts= ["cpp", "hpp", "c++", "h++", "cc", "hh", "C", "H", "tcc"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "auto",
     "class",
@@ -164,6 +182,8 @@ top_level_keywords = [
 languages = ["csharp"]
 exts = ["cs"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "class",
     "struct",
@@ -183,6 +203,8 @@ top_level_keywords = [
 languages = ["php"]
 exts = ["php", "php3", "php4", "php5", "phps", "phpt"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "abstract",
     "class",
@@ -212,6 +234,8 @@ top_level_keywords = [
 languages = ["solidity"]
 exts = ["sol"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "contract",
     "interface",
@@ -227,6 +251,8 @@ top_level_keywords = [
 languages = ["dart"]
 exts = ["dart"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "abstract",
     "class",
@@ -314,6 +340,8 @@ block_comment_end = "=#"
 languages = ["lua"]
 exts = ["lua"]
 line_comment = "--"
+block_comment_start = "--[["
+block_comment_end = "]]"
 top_level_keywords = [
     "and",
     "break",
@@ -378,6 +406,8 @@ block_comment_end = "*/"
 languages = ["scala"]
 exts = ["scala", "sbt"]
 line_comment = "//"
+block_comment_start = "/*"
+block_comment_end = "*/"
 top_level_keywords = [
     "abstract",
     "case",
