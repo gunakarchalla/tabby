@@ -86,10 +86,10 @@ export interface ServerApiV0_10 extends ServerApiV0_9 {
 export interface ServerApiV0_11 extends ServerApiV0_10 {
   /**
    * Push a new generation style to the chat panel when the user changes it in the IDE.
-   * @param style the new generation style: 'code' | 'hint' | 'pseudocode'
+   * @param style the new generation style: 'code' | 'hint' | 'pseudocode' | 'stochastic'
    * @since 0.11.0
    */
-  updateGenerationStyle: (style: 'code' | 'hint' | 'pseudocode') => Promise<void>
+  updateGenerationStyle: (style: 'code' | 'hint' | 'pseudocode' | 'stochastic') => Promise<void>
 }
 
 /**

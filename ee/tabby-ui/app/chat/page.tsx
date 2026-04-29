@@ -62,7 +62,7 @@ export default function ChatPage() {
   const [pendingActiveSelection, setPendingActiveSelection] =
     useState<EditorContext | null>(null)
   const [generationStyle, setGenerationStyle] = useState<
-    'code' | 'hint' | 'pseudocode'
+    'code' | 'hint' | 'pseudocode' | 'stochastic'
   >('code')
   const [errorMessage, setErrorMessage] = useState<ErrorMessage | null>(null)
   const [isRefreshLoading, setIsRefreshLoading] = useState(false)
@@ -177,7 +177,7 @@ export default function ChatPage() {
     },
     updateActiveSelection,
     navigate,
-    updateGenerationStyle: async (style: 'code' | 'hint' | 'pseudocode') => {
+    updateGenerationStyle: async (style: 'code' | 'hint' | 'pseudocode' | 'stochastic') => {
       setGenerationStyle(style)
     }
   })

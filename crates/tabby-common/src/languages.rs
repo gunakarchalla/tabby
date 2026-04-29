@@ -80,20 +80,21 @@ pub enum CommentStyle<'a> {
 }
 
 impl Language {
-    /// Resolve the preferred comment style. Prefer line-comment when both are
-    /// defined (PHP has both `//` and `/* */` — use `//`).
+    /// Resolve the preferred comment style. Prefer block-comment when both are
+    /// defined (PHP has both `//` and `/* */` — use `/* */`) so the wrapper
+    /// always reads as a self-contained comment region.
     pub fn comment_style(&self) -> CommentStyle<'_> {
+        if let (Some(s), Some(e)) = (&self.block_comment_start, &self.block_comment_end) {
+            if !s.is_empty() && !e.is_empty() {
+                return CommentStyle::Block(s.as_str(), e.as_str());
+            }
+        }
         if let Some(lc) = &self.line_comment {
             if !lc.is_empty() {
                 return CommentStyle::Line(lc.as_str());
             }
         }
-        match (&self.block_comment_start, &self.block_comment_end) {
-            (Some(s), Some(e)) if !s.is_empty() && !e.is_empty() => {
-                CommentStyle::Block(s.as_str(), e.as_str())
-            }
-            _ => CommentStyle::None,
-        }
+        CommentStyle::None
     }
 
     pub fn get_stop_words(&self) -> Vec<String> {
@@ -185,15 +186,21 @@ mod comment_style_tests {
     use super::*;
 
     #[test]
-    fn line_preferred_over_block() {
+    fn block_preferred_over_line() {
         let php = get_language("php");
-        assert!(matches!(php.comment_style(), CommentStyle::Line("//")));
+        assert!(matches!(
+            php.comment_style(),
+            CommentStyle::Block("/*", "*/")
+        ));
     }
 
     #[test]
-    fn python_is_line() {
+    fn python_is_block() {
         let python = get_language("python");
-        assert!(matches!(python.comment_style(), CommentStyle::Line("#")));
+        assert!(matches!(
+            python.comment_style(),
+            CommentStyle::Block("'''", "'''")
+        ));
     }
 
     #[test]
@@ -230,14 +237,29 @@ mod comment_style_tests {
     }
 
     #[test]
-    fn sql_has_line_comment() {
+    fn sql_is_block() {
         let sql = get_language("sql");
-        assert!(matches!(sql.comment_style(), CommentStyle::Line("--")));
+        assert!(matches!(
+            sql.comment_style(),
+            CommentStyle::Block("/*", "*/")
+        ));
     }
 
     #[test]
-    fn haskell_is_line() {
+    fn haskell_is_block() {
         let haskell = get_language("haskell");
-        assert!(matches!(haskell.comment_style(), CommentStyle::Line("--")));
+        assert!(matches!(
+            haskell.comment_style(),
+            CommentStyle::Block("{-", "-}")
+        ));
+    }
+
+    #[test]
+    fn dockerfile_is_line() {
+        let dockerfile = get_language("dockerfile");
+        assert!(matches!(
+            dockerfile.comment_style(),
+            CommentStyle::Line("#")
+        ));
     }
 }

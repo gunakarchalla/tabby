@@ -413,14 +413,16 @@
             "enum": [
               "code",
               "hint",
-              "pseudocode"
+              "pseudocode",
+              "stochastic"
             ],
             "default": "code",
             "description": "Output style for Tabby code suggestions.",
             "enumDescriptions": [
               "Real code (default)",
               "Short natural-language hint wrapped in a language-native comment",
-              "BEGIN..END pseudocode wrapped in a language-native comment"
+              "BEGIN..END pseudocode wrapped in a language-native comment",
+              "Numbered natural-language steps wrapped in a language-native comment"
             ]
           },
           "tabby.settings.advanced": {

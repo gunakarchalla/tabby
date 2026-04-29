@@ -133,9 +133,9 @@ export interface ClientApi {
 
   /**
    * Get the current generation style configured in the IDE.
-   * @returns the current generation style: 'code' | 'hint' | 'pseudocode'
+   * @returns the current generation style: 'code' | 'hint' | 'pseudocode' | 'stochastic'
    */
-  getGenerationStyle?: () => Promise<'code' | 'hint' | 'pseudocode'>
+  getGenerationStyle?: () => Promise<'code' | 'hint' | 'pseudocode' | 'stochastic'>
 }
 
 /**

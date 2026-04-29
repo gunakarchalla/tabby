@@ -72,7 +72,7 @@ import { QaPairSkeleton } from './skeletion'
 import { ChatProps, ChatRef } from './types'
 
 function buildStyleInstruction(
-  style: 'code' | 'hint' | 'pseudocode'
+  style: 'code' | 'hint' | 'pseudocode' | 'stochastic'
 ): string | null {
   if (style === 'hint') {
     return (
@@ -92,6 +92,16 @@ function buildStyleInstruction(
       '- Line-comment languages: prefix every line (including BEGIN/END) with the marker.\n' +
       '- Block-comment-only languages: open the comment on its own line, then BEGIN, body, END, then close the comment on its own line.\n' +
       'Do not emit executable code. Do not explain outside the comments.'
+    )
+  }
+  if (style === 'stochastic') {
+    return (
+      'When showing code, output ONLY a numbered English STEP LIST (1:, 2:, 3:, ...) ' +
+      'describing what the code would do. No real code. ' +
+      "Detect the target language's comment style:\n" +
+      '- Line-comment languages: prefix every line (including the "Steps (English):" header) with the marker.\n' +
+      '- Block-comment languages: open the comment on its own line, then "Steps (English):", then numbered items, then close the comment.\n' +
+      'Limit to 3–10 steps. Do not emit executable code. Do not explain outside the comments.'
     )
   }
   return null

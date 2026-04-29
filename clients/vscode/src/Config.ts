@@ -82,11 +82,11 @@ export class Config extends EventEmitter {
     }
   }
 
-  get generationStyle(): "code" | "hint" | "pseudocode" {
+  get generationStyle(): "code" | "hint" | "pseudocode" | "stochastic" {
     return this.workspace.get("generationStyle", "code");
   }
 
-  async updateGenerationStyle(value: "code" | "hint" | "pseudocode") {
+  async updateGenerationStyle(value: "code" | "hint" | "pseudocode" | "stochastic") {
     if (value !== this.generationStyle) {
       await this.workspace.update("generationStyle", value, ConfigurationTarget.Global);
       this.emit("updated");

@@ -1,10 +1,9 @@
 mod completion_prompt;
 mod next_edit_prompt;
 
-use completion_prompt::StyledPrompt;
-
 use std::sync::Arc;
 
+use completion_prompt::StyledPrompt;
 use regex::Regex;
 use serde::{Deserialize, Serialize};
 use tabby_common::{
@@ -70,6 +69,7 @@ pub struct CompletionRequest {
     /// - "code" (default): real code.
     /// - "hint": natural-language hint wrapped in a language-native comment.
     /// - "pseudocode": BEGIN..END pseudocode wrapped in a language-native comment.
+    /// - "stochastic": numbered English step list wrapped in a language-native comment.
     #[serde(default = "default_code_style")]
     generation_style: String,
 }
@@ -120,7 +120,10 @@ impl CompletionRequest {
     }
 
     fn is_non_code_style(&self) -> bool {
-        self.generation_style == "hint" || self.generation_style == "pseudocode"
+        matches!(
+            self.generation_style.as_str(),
+            "hint" | "pseudocode" | "stochastic"
+        )
     }
 }
 
@@ -574,6 +577,7 @@ fn wrap_with_style(raw: String, styled: &StyledPrompt) -> String {
         let placeholder = match styled.effective_style.as_str() {
             "hint" => "(no hint generated)",
             "pseudocode" => "(no pseudocode generated)",
+            "stochastic" => "(no steps generated)",
             _ => return out,
         };
         out = format!(

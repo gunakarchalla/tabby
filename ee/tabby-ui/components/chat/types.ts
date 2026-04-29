@@ -57,7 +57,7 @@ export interface ChatProps extends React.ComponentProps<'div'> {
   setShowHistory: React.Dispatch<React.SetStateAction<boolean>>
   runShell?: (command: string) => Promise<void>
   getChanges?: (params: GetChangesParams) => Promise<ChangeItem[]>
-  generationStyle?: 'code' | 'hint' | 'pseudocode'
+  generationStyle?: 'code' | 'hint' | 'pseudocode' | 'stochastic'
 }
 export interface ChatRef {
   executeCommand: (command: ChatCommand) => Promise<void>

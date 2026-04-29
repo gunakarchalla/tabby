@@ -124,28 +124,40 @@ impl PromptBuilder {
         let (prefix_injection, suffix_injection, display_prefix, display_suffix) =
             match (style, &comment_style) {
                 ("hint", CommentStyle::Line(m)) => (
-                    format!("\n{m} hint: "),
+                    format!("{m} Hint (English): "),
                     String::new(),
-                    Some(format!("\n{m} hint: ")),
+                    Some(format!("{m} Hint (English): ")),
                     None,
                 ),
                 ("pseudocode", CommentStyle::Line(m)) => (
-                    format!("\n{m} BEGIN\n{m} "),
+                    format!("\n{m} Pseudocode:\n{m} BEGIN\n"),
                     format!("\n{m} END\n"),
-                    Some(format!("\n{m} BEGIN\n{m} ")),
+                    Some(format!("\n{m} Pseudocode:\n{m} BEGIN\n")),
                     Some(format!("\n{m} END")),
                 ),
                 ("hint", CommentStyle::Block(s, e)) => (
-                    format!("\n{s} hint: "),
-                    format!(" {e}\n"),
-                    Some(format!("\n{s} hint: ")),
-                    Some(format!(" {e}")),
+                    format!("{s} Hint (English): "),
+                    e.to_string(),
+                    Some(format!("{s} Hint (English): ")),
+                    Some(e.to_string()),
                 ),
                 ("pseudocode", CommentStyle::Block(s, e)) => (
-                    format!("\n{s}\nBEGIN\n  "),
-                    format!("\nEND\n{e}\n"),
-                    Some(format!("\n{s}\nBEGIN\n  ")),
-                    Some(format!("\nEND\n{e}")),
+                    format!("\n{s} Pseudocode:\nBEGIN\n"),
+                    format!("\nEND {e}\n"),
+                    Some(format!("\n{s} Pseudocode:\nBEGIN\n")),
+                    Some(format!("\nEND {e}")),
+                ),
+                ("stochastic", CommentStyle::Line(m)) => (
+                    format!("\n{m} Steps (English):\n{m} 1:"),
+                    String::new(),
+                    Some(format!("\n{m} Steps (English):\n{m} 1:")),
+                    None,
+                ),
+                ("stochastic", CommentStyle::Block(s, e)) => (
+                    format!("\n{s} Steps (English):\n1:"),
+                    format!("{e}\n"),
+                    Some(format!("\n{s} Steps (English):\n1:")),
+                    Some(e.to_string()),
                 ),
                 // No-comment language: downgrade to code
                 _ => {
@@ -549,13 +561,17 @@ mod tests {
 
     #[test]
     fn test_build_styled_python_hint() {
+        // Python now resolves to Block ("'''", "'''").
         let pb = create_prompt_builder(true);
         let seg = make_segment("def foo():\n    ".into(), Some("\n".into()));
         let styled = pb.build_styled("python", seg, &[], "hint");
         assert_eq!(styled.effective_style, "hint");
-        assert!(styled.prompt.contains("# hint: "));
-        assert_eq!(styled.display_prefix.as_deref(), Some("\n# hint: "));
-        assert!(styled.display_suffix.is_none());
+        assert!(styled.prompt.contains("''' Hint (English): "));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("''' Hint (English): ")
+        );
+        assert_eq!(styled.display_suffix.as_deref(), Some("'''"));
     }
 
     #[test]
@@ -564,9 +580,39 @@ mod tests {
         let seg = make_segment("def fib(n):\n    ".into(), Some("\n".into()));
         let styled = pb.build_styled("python", seg, &[], "pseudocode");
         assert_eq!(styled.effective_style, "pseudocode");
-        assert!(styled.prompt.contains("# BEGIN"));
-        assert!(styled.prompt.contains("# END"));
-        assert_eq!(styled.display_prefix.as_deref(), Some("\n# BEGIN\n# "));
+        assert!(styled.prompt.contains("''' Pseudocode:\nBEGIN\n"));
+        assert!(styled.prompt.contains("\nEND '''"));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("\n''' Pseudocode:\nBEGIN\n")
+        );
+        assert_eq!(styled.display_suffix.as_deref(), Some("\nEND '''"));
+    }
+
+    #[test]
+    fn test_build_styled_dockerfile_hint() {
+        // Dockerfile is pure-line ("#"), so this exercises the Line/hint branch.
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("FROM alpine\n".into(), Some("\n".into()));
+        let styled = pb.build_styled("dockerfile", seg, &[], "hint");
+        assert_eq!(styled.effective_style, "hint");
+        assert!(styled.prompt.contains("# Hint (English): "));
+        assert_eq!(styled.display_prefix.as_deref(), Some("# Hint (English): "));
+        assert!(styled.display_suffix.is_none());
+    }
+
+    #[test]
+    fn test_build_styled_dockerfile_pseudocode() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("FROM alpine\n".into(), Some("\n".into()));
+        let styled = pb.build_styled("dockerfile", seg, &[], "pseudocode");
+        assert_eq!(styled.effective_style, "pseudocode");
+        assert!(styled.prompt.contains("\n# Pseudocode:\n# BEGIN\n"));
+        assert!(styled.prompt.contains("\n# END"));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("\n# Pseudocode:\n# BEGIN\n")
+        );
         assert_eq!(styled.display_suffix.as_deref(), Some("\n# END"));
     }
 
@@ -576,10 +622,13 @@ mod tests {
         let seg = make_segment("<body>\n".into(), Some("</body>".into()));
         let styled = pb.build_styled("html", seg, &[], "pseudocode");
         assert_eq!(styled.effective_style, "pseudocode");
-        assert!(styled.prompt.contains("<!--"));
-        assert!(styled.prompt.contains("BEGIN"));
-        assert!(styled.prompt.contains("END"));
-        assert!(styled.prompt.contains("-->"));
+        assert!(styled.prompt.contains("<!-- Pseudocode:\nBEGIN\n"));
+        assert!(styled.prompt.contains("\nEND -->"));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("\n<!-- Pseudocode:\nBEGIN\n")
+        );
+        assert_eq!(styled.display_suffix.as_deref(), Some("\nEND -->"));
     }
 
     #[test]
@@ -588,9 +637,67 @@ mod tests {
         let seg = make_segment("<body>\n".into(), Some("</body>".into()));
         let styled = pb.build_styled("html", seg, &[], "hint");
         assert_eq!(styled.effective_style, "hint");
-        assert!(styled.prompt.contains("<!-- hint:"));
-        assert_eq!(styled.display_prefix.as_deref(), Some("\n<!-- hint: "));
-        assert_eq!(styled.display_suffix.as_deref(), Some(" -->"));
+        assert!(styled.prompt.contains("<!-- Hint (English): "));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("<!-- Hint (English): ")
+        );
+        assert_eq!(styled.display_suffix.as_deref(), Some("-->"));
+    }
+
+    #[test]
+    fn test_build_styled_dockerfile_stochastic() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("FROM alpine\n".into(), Some("\n".into()));
+        let styled = pb.build_styled("dockerfile", seg, &[], "stochastic");
+        assert_eq!(styled.effective_style, "stochastic");
+        assert!(styled.prompt.contains("\n# Steps (English):\n# 1:"));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("\n# Steps (English):\n# 1:")
+        );
+        assert!(styled.display_suffix.is_none());
+    }
+
+    #[test]
+    fn test_build_styled_python_stochastic() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("def fib(n):\n    ".into(), Some("\n".into()));
+        let styled = pb.build_styled("python", seg, &[], "stochastic");
+        assert_eq!(styled.effective_style, "stochastic");
+        assert!(styled.prompt.contains("\n''' Steps (English):\n1:"));
+        assert!(styled.prompt.contains("'''\n"));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("\n''' Steps (English):\n1:")
+        );
+        assert_eq!(styled.display_suffix.as_deref(), Some("'''"));
+    }
+
+    #[test]
+    fn test_build_styled_html_stochastic() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("<body>\n".into(), Some("</body>".into()));
+        let styled = pb.build_styled("html", seg, &[], "stochastic");
+        assert_eq!(styled.effective_style, "stochastic");
+        assert!(styled.prompt.contains("\n<!-- Steps (English):\n1:"));
+        assert_eq!(
+            styled.display_prefix.as_deref(),
+            Some("\n<!-- Steps (English):\n1:")
+        );
+        assert_eq!(styled.display_suffix.as_deref(), Some("-->"));
+    }
+
+    #[test]
+    fn test_build_styled_txt_stochastic_downgrades_to_code() {
+        let pb = create_prompt_builder(true);
+        let seg = make_segment("hello".into(), Some("\n".into()));
+        let styled = pb.build_styled("txt", seg.clone(), &[], "stochastic");
+        let plain = pb.build("txt", seg, &[]);
+        assert_eq!(styled.effective_style, "code");
+        assert_eq!(styled.prompt, plain);
+        assert!(styled.display_prefix.is_none());
+        assert!(styled.display_suffix.is_none());
     }
 
     #[test]

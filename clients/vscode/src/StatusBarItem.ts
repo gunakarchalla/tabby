@@ -30,7 +30,7 @@ export class StatusBarItem {
     };
 
     this.styleItem.command = "tabby.cycleGenerationStyle";
-    this.styleItem.tooltip = "Click to cycle Tabby generation style (code / hint / pseudocode)";
+    this.styleItem.tooltip = "Click to cycle Tabby generation style (code / hint / pseudocode / stochastic)";
 
     this.update();
     this.updateStyleItem();
@@ -52,12 +52,8 @@ export class StatusBarItem {
 
   private updateStyleItem() {
     const style = this.config.generationStyle;
-    if (style !== "code") {
-      this.styleItem.text = `$(comment) Tabby: ${style}`;
-      this.styleItem.show();
-    } else {
-      this.styleItem.hide();
-    }
+    this.styleItem.text = `$(comment) Tabby: ${style}`;
+    this.styleItem.show();
   }
 
   update() {

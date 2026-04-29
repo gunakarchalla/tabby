@@ -59,7 +59,10 @@ export class Commands {
     cycleGenerationStyle: async () => {
       const current = this.config.generationStyle;
       const next =
-        current === "code" ? "hint" : current === "hint" ? "pseudocode" : "code";
+        current === "code" ? "hint" :
+        current === "hint" ? "pseudocode" :
+        current === "pseudocode" ? "stochastic" :
+        "code";
       await this.config.updateGenerationStyle(next);
       window.showInformationMessage(`Tabby generation style: ${next}`);
     },

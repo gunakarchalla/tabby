@@ -61,7 +61,7 @@ export type ChatContextValue = {
   runShell?: (command: string) => Promise<void>
   contextInfo: ContextInfo | undefined
   fetchingContextInfo: boolean
-  generationStyle: 'code' | 'hint' | 'pseudocode'
+  generationStyle: 'code' | 'hint' | 'pseudocode' | 'stochastic'
 }
 
 export const ChatContext = createContext<ChatContextValue>(

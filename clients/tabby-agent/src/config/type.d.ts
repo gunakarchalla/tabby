@@ -86,8 +86,8 @@ export type ConfigData = {
       responseDocumentTag: string[];
       responseCommentTag: string[] | undefined;
       promptTemplate: {
-        replace: { code: string; hint: string; pseudocode: string };
-        insert: { code: string; hint: string; pseudocode: string };
+        replace: { code: string; hint: string; pseudocode: string; stochastic: string };
+        insert: { code: string; hint: string; pseudocode: string; stochastic: string };
       };
       presetCommands: Record<
         string,
@@ -127,7 +127,7 @@ export type ConfigData = {
     disable: boolean;
   };
   generation: {
-    style: "code" | "hint" | "pseudocode";
+    style: "code" | "hint" | "pseudocode" | "stochastic";
   };
 };
 

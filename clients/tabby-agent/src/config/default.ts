@@ -8,6 +8,8 @@ import editCommandReplaceHintPrompt from "../chat/prompts/edit-command-replace-h
 import editCommandInsertHintPrompt from "../chat/prompts/edit-command-insert-hint.md";
 import editCommandReplacePseudocodePrompt from "../chat/prompts/edit-command-replace-pseudocode.md";
 import editCommandInsertPseudocodePrompt from "../chat/prompts/edit-command-insert-pseudocode.md";
+import editCommandReplaceStochasticPrompt from "../chat/prompts/edit-command-replace-stochastic.md";
+import editCommandInsertStochasticPrompt from "../chat/prompts/edit-command-insert-stochastic.md";
 import generateSmartApplyPrompt from "../chat/prompts/generate-smart-apply.md";
 import provideSmartApplyLineRangePrompt from "../chat/prompts/provide-smart-apply-line-range.md";
 import includeFileContextList from "../chat/prompts/include-file-context-list.md";
@@ -85,8 +87,8 @@ export const defaultConfigData: ConfigData = {
       responseDocumentTag: ["<GENERATEDCODE>", "</GENERATEDCODE>"],
       responseCommentTag: undefined,
       promptTemplate: {
-        replace: { code: editCommandReplacePrompt, hint: editCommandReplaceHintPrompt, pseudocode: editCommandReplacePseudocodePrompt },
-        insert: { code: editCommandInsertPrompt, hint: editCommandInsertHintPrompt, pseudocode: editCommandInsertPseudocodePrompt },
+        replace: { code: editCommandReplacePrompt, hint: editCommandReplaceHintPrompt, pseudocode: editCommandReplacePseudocodePrompt, stochastic: editCommandReplaceStochasticPrompt },
+        insert: { code: editCommandInsertPrompt, hint: editCommandInsertHintPrompt, pseudocode: editCommandInsertPseudocodePrompt, stochastic: editCommandInsertStochasticPrompt },
       },
       presetCommands: {
         "/doc": {

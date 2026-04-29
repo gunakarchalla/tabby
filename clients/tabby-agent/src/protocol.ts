@@ -217,7 +217,7 @@ export type ClientProvidedConfig = {
    * Controls the generation style for inline completions.
    */
   generation?: {
-    style?: "code" | "hint" | "pseudocode";
+    style?: "code" | "hint" | "pseudocode" | "stochastic";
   };
 };
 

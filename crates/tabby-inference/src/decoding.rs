@@ -56,16 +56,23 @@ impl StopConditionFactory {
 
         use tabby_common::languages::CommentStyle;
         let extra: Vec<String> = match (style, language.comment_style()) {
-            // For hint + line-comment: stop at first newline (single-line output)
-            ("hint", CommentStyle::Line(_)) => vec!["\n".to_string()],
-            // For hint + block-comment: stop when closing marker is generated
-            ("hint", CommentStyle::Block(_, e)) => vec![e.to_string()],
-            // For pseudocode + line-comment: stop at the END marker line
-            ("pseudocode", CommentStyle::Line(m)) => vec![format!("\n{m} END")],
-            // For pseudocode + block-comment: stop at END or closing marker
-            ("pseudocode", CommentStyle::Block(_, e)) => {
-                vec!["\nEND".to_string(), e.to_string()]
+            ("stochastic", CommentStyle::Line(m)) => {
+                let cached = self.get_trie(language);
+                return StopCondition::new_with_stochastic_line(cached, m.to_string(), text);
             }
+            ("stochastic", CommentStyle::Block(_, e)) => vec![e.to_string()],
+            // hint + line: no closing marker in the suffix; stop at first newline.
+            ("hint", CommentStyle::Line(_)) => vec!["\n".to_string()],
+            // hint + block: stop when the model writes the closing block marker.
+            ("hint", CommentStyle::Block(_, e)) => vec![e.to_string()],
+            // pseudocode + line: trust the model to follow the suffix
+            // "\n{m} END\n"; stop once it has produced the END line (before the
+            // trailing newline so dedup is clean).
+            ("pseudocode", CommentStyle::Line(m)) => vec![format!("\n{m} END")],
+            // pseudocode + block: trust the model to follow the suffix
+            // "\nEND {e}\n"; stop on the closing block marker, which only
+            // appears once the END frame is complete.
+            ("pseudocode", CommentStyle::Block(_, e)) => vec![e.to_string()],
             _ => vec![],
         };
 
@@ -113,6 +120,8 @@ pub struct StopCondition<'a> {
     extra_stop_trie: Option<Trie<u8>>,
     reversed_text: String,
     num_decoded: usize,
+    forward_text: String,
+    stochastic_line_marker: Option<String>,
 }
 
 impl<'a> StopCondition<'a> {
@@ -122,6 +131,8 @@ impl<'a> StopCondition<'a> {
             extra_stop_trie: None,
             reversed_text: reverse(text),
             num_decoded: 0,
+            forward_text: String::new(),
+            stochastic_line_marker: None,
         }
     }
 
@@ -135,6 +146,23 @@ impl<'a> StopCondition<'a> {
             extra_stop_trie,
             reversed_text: reverse(text),
             num_decoded: 0,
+            forward_text: String::new(),
+            stochastic_line_marker: None,
+        }
+    }
+
+    pub fn new_with_stochastic_line(
+        stop_trie: Option<CachedTrie<'a>>,
+        marker: String,
+        text: &str,
+    ) -> Self {
+        Self {
+            stop_trie,
+            extra_stop_trie: None,
+            reversed_text: reverse(text),
+            num_decoded: 0,
+            forward_text: text.to_string(),
+            stochastic_line_marker: Some(marker),
         }
     }
 
@@ -158,8 +186,37 @@ impl<'a> StopCondition<'a> {
                     return (true, matched_length);
                 }
             }
+
+            if self.stochastic_line_marker.is_some() {
+                self.forward_text.push_str(new_text);
+                let marker = self.stochastic_line_marker.as_deref().unwrap();
+                if let Some(matched) = check_stochastic_line_end(&self.forward_text, marker) {
+                    return (true, matched);
+                }
+            }
         }
         (false, 0)
+    }
+}
+
+/// For stochastic + line-comment: stop the moment a `\n` is followed by any
+/// content that is not a prefix of the comment marker.
+///
+/// Returns the number of bytes (from `\n` inclusive) to truncate from the end
+/// of the generated text, or `None` if we should keep going.
+fn check_stochastic_line_end(text: &str, marker: &str) -> Option<usize> {
+    let bytes = text.as_bytes();
+    let nl_pos = bytes.iter().rposition(|&b| b == b'\n')?;
+    let after = &bytes[nl_pos + 1..];
+    if after.is_empty() {
+        return None; // newline just emitted; wait for the next char(s)
+    }
+    let m = marker.as_bytes();
+    let n = after.len().min(m.len());
+    if after[..n] != m[..n] {
+        Some(text.len() - nl_pos)
+    } else {
+        None
     }
 }
 
@@ -228,9 +285,10 @@ mod tests {
     fn test_create_with_style_hint_line_stops_on_newline() {
         use tabby_common::languages::get_language;
         let factory = StopConditionFactory::default();
-        let lang = get_language("python");
+        // Dockerfile is pure-line ("#"), so its comment_style stays Line.
+        let lang = get_language("dockerfile");
         let mut cond = factory.create_with_style("", Some(lang), "hint");
-        let (should_stop, _) = cond.should_stop("recursively computes fib");
+        let (should_stop, _) = cond.should_stop("base alpine image");
         assert!(!should_stop);
         let (should_stop, _) = cond.should_stop("\n");
         assert!(should_stop);
@@ -240,12 +298,87 @@ mod tests {
     fn test_create_with_style_pseudocode_line_stops_on_end_marker() {
         use tabby_common::languages::get_language;
         let factory = StopConditionFactory::default();
+        let lang = get_language("dockerfile");
+        let mut cond = factory.create_with_style("", Some(lang), "pseudocode");
+        let (should_stop, _) = cond.should_stop("INSTALL deps");
+        assert!(!should_stop);
+        // Stop word is "\n# END".
+        let (should_stop, _) = cond.should_stop("\n# END");
+        assert!(should_stop);
+    }
+
+    #[test]
+    fn test_create_with_style_hint_block_stops_on_close() {
+        use tabby_common::languages::get_language;
+        let factory = StopConditionFactory::default();
+        // Python now resolves to Block ("'''", "'''").
+        let lang = get_language("python");
+        let mut cond = factory.create_with_style("", Some(lang), "hint");
+        let (should_stop, _) = cond.should_stop("computes fib recursively");
+        assert!(!should_stop);
+        let (should_stop, _) = cond.should_stop("'''");
+        assert!(should_stop);
+    }
+
+    #[test]
+    fn test_create_with_style_pseudocode_block_stops_on_close() {
+        use tabby_common::languages::get_language;
+        let factory = StopConditionFactory::default();
         let lang = get_language("python");
         let mut cond = factory.create_with_style("", Some(lang), "pseudocode");
+        // Body of the pseudocode should not trigger a stop.
         let (should_stop, _) = cond.should_stop("IF n <= 1 RETURN n");
         assert!(!should_stop);
-        // The stop word is "\n# END" — feed it piece by piece
-        let (should_stop, _) = cond.should_stop("\n# END");
+        // Nor should the bare "\nEND " segment — we trust the model to follow
+        // the suffix injection through to the closing marker.
+        let (should_stop, _) = cond.should_stop("\nEND ");
+        assert!(!should_stop);
+        // Closing block marker fires the stop.
+        let (should_stop, _) = cond.should_stop("'''");
+        assert!(should_stop);
+    }
+
+    #[test]
+    fn test_create_with_style_stochastic_line_stops_on_non_comment() {
+        use tabby_common::languages::get_language;
+        let factory = StopConditionFactory::default();
+        let lang = get_language("dockerfile"); // marker "#"
+        let mut cond = factory.create_with_style("", Some(lang), "stochastic");
+        let (should_stop, _) = cond.should_stop(" Step one");
+        assert!(!should_stop);
+        let (should_stop, _) = cond.should_stop("\n# 2: Step two");
+        assert!(!should_stop);
+        let (should_stop, n) = cond.should_stop("\nFROM alpine");
+        assert!(should_stop);
+        assert!(n >= "\nFROM alpine".len());
+    }
+
+    #[test]
+    fn test_create_with_style_stochastic_line_partial_marker_waits() {
+        // Test the partial-prefix logic of check_stochastic_line_end directly
+        // using new_with_stochastic_line, since no language in the config
+        // produces CommentStyle::Line("--") (all "--" languages also have block comments).
+        let mut cond = StopCondition::new_with_stochastic_line(None, "--".to_string(), "");
+        // After "\n-" we have a partial-prefix match of "--"; do not stop.
+        let (should_stop, _) = cond.should_stop("\n-");
+        assert!(!should_stop);
+        // Completing the marker keeps us going.
+        let (should_stop, _) = cond.should_stop("- 2: next step");
+        assert!(!should_stop);
+        // Now a divergence after a newline.
+        let (should_stop, _) = cond.should_stop("\nSELECT");
+        assert!(should_stop);
+    }
+
+    #[test]
+    fn test_create_with_style_stochastic_block_stops_on_close() {
+        use tabby_common::languages::get_language;
+        let factory = StopConditionFactory::default();
+        let lang = get_language("python"); // Block ("'''", "'''")
+        let mut cond = factory.create_with_style("", Some(lang), "stochastic");
+        let (should_stop, _) = cond.should_stop(" Parse input\n2: Validate\n3: Compute");
+        assert!(!should_stop);
+        let (should_stop, _) = cond.should_stop("'''");
         assert!(should_stop);
     }
 }
