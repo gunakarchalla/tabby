@@ -87,6 +87,9 @@ pub struct ThreadRunOptionsInput {
 
     #[graphql(default)]
     pub debug_options: Option<ThreadRunDebugOptionsInput>,
+
+    #[graphql(default)]
+    pub system_prompt: Option<String>,
 }
 
 #[derive(GraphQLInputObject, Clone)]

@@ -158,6 +158,7 @@ impl PageService for PageServiceImpl {
             doc_query: input.doc_query.clone(),
             generate_relevant_questions: false,
             debug_options: None,
+            system_prompt: None,
         };
 
         let answer = self.answer.clone();

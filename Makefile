@@ -11,6 +11,10 @@ update-ui:
 	rm -rf ee/tabby-webserver/ui && cp -R ee/tabby-ui/out ee/tabby-webserver/ui
 	rm -rf ee/tabby-webserver/email_templates && cp -R ee/tabby-email/out ee/tabby-webserver/email_templates
 
+new-update-ui:
+	pnpm build --filter=tabby-threads --filter=tabby-chat-panel --filter=tabby-agent --filter=tabby-ui
+	powershell -Command "Remove-Item -Recurse -Force -ErrorAction SilentlyContinue ee/tabby-webserver/ui; Copy-Item -Recurse ee/tabby-ui/out ee/tabby-webserver/ui"
+
 update-db-schema:
 	sqlite3 ee/tabby-db/schema.sqlite ".schema --indent" > ee/tabby-db/schema/schema.sql
 	sqlite3 ee/tabby-db/schema.sqlite -init  ee/tabby-db/schema/sqlite-schema-visualize.sql "" > schema.dot

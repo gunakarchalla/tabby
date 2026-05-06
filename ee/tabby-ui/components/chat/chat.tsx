@@ -1,107 +1,72 @@
-import React from 'react'
-import { Content, EditorEvents } from '@tiptap/core'
-import {
-  compact,
-  findIndex,
-  isEqual,
-  isEqualWith,
-  some,
-  uniqWith
-} from 'lodash-es'
-import type { ChatCommand, EditorContext } from 'tabby-chat-panel'
-import { useQuery } from 'urql'
+import React from 'react';
+import { Content, EditorEvents } from '@tiptap/core';
+import { compact, findIndex, isEqual, isEqualWith, some, uniqWith } from 'lodash-es';
+import type { ChatCommand, EditorContext } from 'tabby-chat-panel';
+import { useQuery } from 'urql';
 
-import { ERROR_CODE_NOT_FOUND } from '@/lib/constants'
-import {
-  CodeQueryInput,
-  CreateMessageInput,
-  DocQueryInput,
-  InputMaybe,
-  ListThreadMessagesQuery,
-  MessageAttachmentCodeInput,
-  Role,
-  ThreadRunOptionsInput
-} from '@/lib/gql/generates/graphql'
-import { useDebounceCallback } from '@/lib/hooks/use-debounce'
-import { useLatest } from '@/lib/hooks/use-latest'
-import { useSelectedModel } from '@/lib/hooks/use-models'
-import { useThreadRun } from '@/lib/hooks/use-thread-run'
-import { filename2prism } from '@/lib/language-utils'
-import { useChatStore } from '@/lib/stores/chat-store'
-import {
-  contextInfoQuery,
-  listThreadMessages,
-  repositorySourceListQuery
-} from '@/lib/tabby/query'
-import { ExtendedCombinedError } from '@/lib/types'
-import {
-  AssistantMessage,
-  Context,
-  FileContext,
-  MessageActionType,
-  QuestionAnswerPair,
-  UserMessage,
-  UserMessageWithOptionalId
-} from '@/lib/types/chat'
-import {
-  buildMarkdownCodeBlock,
-  cn,
-  convertEditorContext,
-  findClosestGitRepository,
-  getFileLocationFromContext,
-  getPromptForChatCommand,
-  nanoid,
-  processingPlaceholder,
-  terminalContextToAttachmentCode
-} from '@/lib/utils'
-import { convertContextBlockToPlaceholder } from '@/lib/utils/markdown'
 
-import LoadingWrapper from '../loading-wrapper'
-import { ChatContext } from './chat-context'
-import { ChatPanel, ChatPanelRef } from './chat-panel'
-import { ChatScrollAnchor } from './chat-scroll-anchor'
-import { EmptyScreen } from './empty-screen'
-import { convertTextToTiptapContent } from './form-editor/utils'
 
-import './git/utils'
+import { ERROR_CODE_NOT_FOUND } from '@/lib/constants';
+import { CodeQueryInput, CreateMessageInput, DocQueryInput, InputMaybe, ListThreadMessagesQuery, MessageAttachmentCodeInput, Role, ThreadRunOptionsInput } from '@/lib/gql/generates/graphql';
+import { useDebounceCallback } from '@/lib/hooks/use-debounce';
+import { useLatest } from '@/lib/hooks/use-latest';
+import { useSelectedModel } from '@/lib/hooks/use-models';
+import { useThreadRun } from '@/lib/hooks/use-thread-run';
+import { filename2prism } from '@/lib/language-utils';
+import { useChatStore } from '@/lib/stores/chat-store';
+import { contextInfoQuery, listThreadMessages, repositorySourceListQuery } from '@/lib/tabby/query';
+import { ExtendedCombinedError } from '@/lib/types';
+import { AssistantMessage, Context, FileContext, MessageActionType, QuestionAnswerPair, UserMessage, UserMessageWithOptionalId } from '@/lib/types/chat';
+import { buildMarkdownCodeBlock, cn, convertEditorContext, findClosestGitRepository, getFileLocationFromContext, getPromptForChatCommand, nanoid, processingPlaceholder, terminalContextToAttachmentCode } from '@/lib/utils';
+import { convertContextBlockToPlaceholder } from '@/lib/utils/markdown';
 
-import { Maybe } from 'graphql/jsutils/Maybe'
 
-import { QuestionAnswerList } from './question-answer'
-import { QaPairSkeleton } from './skeletion'
-import { ChatProps, ChatRef } from './types'
+
+import LoadingWrapper from '../loading-wrapper';
+import { ChatContext } from './chat-context';
+import { ChatPanel, ChatPanelRef } from './chat-panel';
+import { ChatScrollAnchor } from './chat-scroll-anchor';
+import { EmptyScreen } from './empty-screen';
+import { convertTextToTiptapContent } from './form-editor/utils';
+
+
+
+import './git/utils';
+
+
+
+import { Maybe } from 'graphql/jsutils/Maybe';
+
+
+
+import { QuestionAnswerList } from './question-answer';
+import { QaPairSkeleton } from './skeletion';
+import { ChatProps, ChatRef } from './types';
+
 
 function buildStyleInstruction(
   style: 'code' | 'hint' | 'pseudocode' | 'stochastic'
 ): string | null {
   if (style === 'hint') {
     return (
-      'When showing code, output ONLY a natural-language HINT describing what the code would do, ' +
-      'prefixed with "hint: ". Detect the target language\'s comment style from context:\n' +
-      '- Line-comment languages (//, #, --, etc.): prefix the single line with the marker.\n' +
-      '- Block-comment-only languages (HTML <!-- -->, CSS /* */, etc.): wrap the whole block ONCE with the markers.\n' +
-      'Do not emit executable code. Do not explain outside the comment.'
+      'STRICTLY OUTPUT ONLY A SINGLE LINE OF NATURAL-LANGUAGE HINT DESCRIBING WHAT TO DO. ' +
+      'THE OUTPUT SHOULD NOT EXCEED 300 CHARACTERS. PREFIX THE LINE WITH "Hint (English): ". ' +
+      'DO NOT EMIT EXECUTABLE CODE. NO EXAMPLES. DO NOT EXPLAIN OUTSIDE THE HINT.'
     )
   }
   if (style === 'pseudocode') {
     return (
-      'When showing code, output ONLY language-agnostic PSEUDOCODE framed by standard ' +
-      '`BEGIN` and `END` delimiters on their own lines.\n' +
-      'Use uppercase keywords: BEGIN, END, IF..THEN, ELSE, FOR..DO, WHILE..DO, RETURN, SET..TO, CALL.\n' +
-      "Detect the target language's comment style:\n" +
-      '- Line-comment languages: prefix every line (including BEGIN/END) with the marker.\n' +
-      '- Block-comment-only languages: open the comment on its own line, then BEGIN, body, END, then close the comment on its own line.\n' +
-      'Do not emit executable code. Do not explain outside the comments.'
+      'STRICTLY OUTPUT ONLY LANGUAGE-AGNOSTIC PSEUDOCODE FRAMED BY STANDARD `BEGIN` AND `END` DELIMITERS ON THEIR OWN LINES. ' +
+      'USE UPPERCASE KEYWORDS: BEGIN, END, IF..THEN, ELSE, ELSE..IF, FOR..DO, WHILE..DO, REPEAT..UNTIL, BREAK, CONTINUE, SWITCH..CASE, DEFAULT, RETURN, SET..TO, INPUT, OUTPUT, DECLARE, FUNCTION, PROCEDURE, CALL, EXIT, THROW, TRY..CATCH. ' +
+      'PREFIX THE FIRST LINE WITH "Pseudocode:". ' +
+      'DO NOT EMIT EXECUTABLE CODE. DO NOT EMIT EXECUTABLE CODE. DO NOT EXPLAIN THE PSEUDOCODE. NO EXAMPLES.'
     )
   }
   if (style === 'stochastic') {
     return (
-      'When showing code, output ONLY a numbered English STEP LIST (1:, 2:, 3:, ...) ' +
-      'describing what the code would do. No real code. ' +
-      "Detect the target language's comment style:\n" +
-      '- Line-comment languages: prefix every line (including the "Steps (English):" header) with the marker.\n' +
-      '- Block-comment languages: open the comment on its own line, then "Steps (English):", then numbered items, then close the comment.\n' +
-      'Limit to 3–10 steps. Do not emit executable code. Do not explain outside the comments.'
+      'STRICTLY OUTPUT ONLY A NUMBERED ENGLISH STEP LIST (1:, 2:, 3:, ...) DESCRIBING WHAT TO DO. ' +
+      'LIMIT TO 3–10 STEPS. PREFIX THE FIRST LINE WITH "Steps (English):". ' +
+      'DO NOT EMIT EXECUTABLE CODE. DO NOT EXPLAIN OUTSIDE THE STEP LIST. NO EXAMPLES.'
     )
   }
   return null
@@ -605,21 +570,18 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
           }
         })
 
-      const rawContent = userMessage.content
+      const content = userMessage.content
       const styleInstruction = buildStyleInstruction(generationStyle)
-      const content = styleInstruction
-        ? `${rawContent}\n\n${styleInstruction}`
-        : rawContent
       const docQuery: InputMaybe<DocQueryInput> = codeSourceId
         ? {
-            content: rawContent,
+            content,
             sourceIds: [codeSourceId],
             searchPublic: false
           }
         : null
       const codeQuery: InputMaybe<CodeQueryInput> = codeSourceId
         ? {
-            content: rawContent,
+            content,
             sourceId: codeSourceId,
             filepath: attachmentCode?.[0]?.filepath
           }
@@ -636,7 +598,8 @@ export const Chat = React.forwardRef<ChatRef, ChatProps>(
           docQuery,
           codeQuery,
           generateRelevantQuestions: !!generateRelevantQuestions,
-          modelName: selectedModel
+          modelName: selectedModel,
+          systemPrompt: styleInstruction
         }
       ]
     }

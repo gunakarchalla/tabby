@@ -192,8 +192,12 @@ impl AnswerService {
 
             // 4. Prepare requesting LLM
             let request = {
+                let effective_system_prompt = match &options.system_prompt {
+                    Some(per_request) => format!("{}\n\n{}", self.config.system_prompt, per_request),
+                    None => self.config.system_prompt.clone(),
+                };
                 let mut chat_messages = convert_messages_to_chat_completion_request(
-                    Some(&self.config.system_prompt),
+                    Some(&effective_system_prompt),
                     &context_info_helper,
                     &messages,
                 )?;

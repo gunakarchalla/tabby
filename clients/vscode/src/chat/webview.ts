@@ -299,6 +299,8 @@ export class ChatWebview extends EventEmitter {
       useMacOSKeyboardEventHandler: isMac,
     });
 
+    client["0.11.0"]?.updateGenerationStyle(this.config?.generationStyle ?? "code");
+
     webview.postMessage({ action: "showChatPanel" });
   }
 

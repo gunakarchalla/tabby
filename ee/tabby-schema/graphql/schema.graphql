@@ -181,7 +181,7 @@ input CreatePageSectionRunInput {
 
 input CreateThreadAndRunInput {
   thread: CreateThreadInput!
-  options: ThreadRunOptionsInput! = {codeQuery: null, debugOptions: null, docQuery: null, generateRelevantQuestions: false, modelName: null}
+  options: ThreadRunOptionsInput! = {codeQuery: null, debugOptions: null, docQuery: null, generateRelevantQuestions: false, modelName: null, systemPrompt: null}
 }
 
 input CreateThreadInput {
@@ -191,7 +191,7 @@ input CreateThreadInput {
 input CreateThreadRunInput {
   threadId: ID!
   additionalUserMessage: CreateMessageInput!
-  options: ThreadRunOptionsInput! = {codeQuery: null, debugOptions: null, docQuery: null, generateRelevantQuestions: false, modelName: null}
+  options: ThreadRunOptionsInput! = {codeQuery: null, debugOptions: null, docQuery: null, generateRelevantQuestions: false, modelName: null, systemPrompt: null}
 }
 
 input CreateThreadToPageRunInput {
@@ -285,6 +285,7 @@ input ThreadRunOptionsInput {
   codeQuery: CodeQueryInput = null
   generateRelevantQuestions: Boolean! = false
   debugOptions: ThreadRunDebugOptionsInput = null
+  systemPrompt: String = null
 }
 
 input ThreadToPageDebugOptionInput {
